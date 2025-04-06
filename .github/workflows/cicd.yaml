@@ -11,9 +11,8 @@ jobs:
   build-and-push:
     name: Build & Push Docker Image to Amazon ECR
     runs-on: ubuntu-latest
-
     outputs:
-      image_uri: ${{ steps.set-output.outputs.image_uri }}
+      image_uri: ${{ steps.build.outputs.image_uri }}
 
     steps:
       - name: Checkout code
@@ -31,18 +30,17 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build, Tag, and Push Docker Image
+        id: build
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
         run: |
           IMAGE_URI=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          echo "Building image: $IMAGE_URI"
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-
-      - name: Set image URI as output
-        id: set-output
-        run: echo "image_uri=${{ env.IMAGE_URI }}" >> $GITHUB_OUTPUT
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy to EC2
