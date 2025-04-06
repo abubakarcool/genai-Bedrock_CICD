@@ -62,24 +62,27 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          timeout: 30s
-          command_timeout: 10m
           script: |
-            # Retrieve the image URI from the build step's output
-            IMAGE_URI="${{ steps.build.outputs.image_uri }}"
+            IMAGE_URI="${{ steps.build-and-push.outputs.image_uri }}"
             echo "Deploying image: $IMAGE_URI"
-            # Extract the ECR registry (the part before the first '/')
+
+            export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+            export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+            export AWS_DEFAULT_REGION="${{ secrets.AWS_REGION }}"
+
             REGISTRY=$(echo $IMAGE_URI | cut -d '/' -f 1)
             echo "Logging into ECR registry: $REGISTRY"
-            aws ecr get-login-password --region "${{ secrets.AWS_DEFAULT_REGION }}" | docker login --username AWS --password-stdin $REGISTRY
+            aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY
+
             docker stop streamlit-app || true
             docker rm streamlit-app || true
             docker pull $IMAGE_URI
+
             docker run -d \
-              -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
-              -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-              -e AWS_DEFAULT_REGION="${{ secrets.AWS_DEFAULT_REGION }}" \
+              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+              -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
               -p 8501:8501 \
               --name streamlit-app \
               $IMAGE_URI
+
