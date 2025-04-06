@@ -177,3 +177,63 @@ git push origin main
 ```
 GitHub Actions will auto-build and deploy your Docker image to EC2 via ECR.
 
+
+
+
+
+
+
+
+
+## 🧹 Stopping & Deleting AWS Resources (To Avoid Billing)
+
+Once you're done testing or running your project, it's important to clean up all AWS resources to **prevent any ongoing charges**. Here's how to stop and remove everything used in this setup:
+
+---
+
+### 🖥️ 1. Terminate EC2 Instance
+
+1. Go to the **EC2 Dashboard**.
+2. Click **Instances** from the left sidebar.
+3. Select your instance (e.g., `test_aws`).
+4. Click the **"Instance state"** dropdown.
+5. Choose **Terminate instance**.
+6. Confirm when prompted.
+
+💡 **Note:** This will **delete the instance** permanently (including any Docker containers and code on it).
+
+---
+
+### 🧱 2. Delete ECR Images and Repository
+
+1. Go to the **ECR Console**.
+2. Select your repository (e.g., `test-aws`).
+3. Click **"View images"**.
+4. Select all images → Click **"Delete"** → Confirm.
+5. Go back to the repository list.
+6. Select your repository again → Click **"Delete repository"** → Confirm.
+
+🛑 Images stored in ECR **can incur charges**, so deleting them is critical.
+
+---
+
+### 🧑‍💼 3. Delete the IAM User
+
+1. Go to the **IAM Dashboard**.
+2. Click **Users** in the sidebar.
+3. Find the IAM user you created (e.g., `test_aws`).
+4. Click the username.
+5. Under the **Security Credentials** tab:
+   - Revoke and delete **access keys**.
+6. Click **"Delete user"** at the top right → Confirm.
+
+✅ This removes AWS programmatic access (used in GitHub Actions).
+
+---
+
+### ✅ That’s it! You're now fully cleaned up and won’t be billed further.
+
+🧠 **Tip:** Always review your AWS billing dashboard to double-check there’s no active resource left.
+
+
+
