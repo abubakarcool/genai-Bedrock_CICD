@@ -23,6 +23,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
+      - name: Verify AWS Credentials and ECR Repository
+        run: |
+          echo "Verifying AWS credentials..."
+          aws sts get-caller-identity
+          echo "Verifying that ECR repository '${{ secrets.ECR_REPO }}' exists..."
+          aws ecr describe-repositories --repository-names ${{ secrets.ECR_REPO }}
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -36,22 +43,32 @@ jobs:
           # Construct the full image URI
           IMAGE_URI=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
           echo "Built image: $IMAGE_URI"
-          # Build and push the Docker image
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-          # Save IMAGE_URI to the environment for subsequent steps
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          # Capture the image URI as an output
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+      - name: Verify EC2 Configuration
+        run: |
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            echo "Error: EC2_HOST is not set!"
+            exit 1
+          else
+            echo "EC2_HOST is set."
+          fi
 
       - name: Deploy to EC2 via SSH
-        # Pass the IMAGE_URI from the environment into this step
-        env:
-          IMAGE_URI: ${{ env.IMAGE_URI }}
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 30s
+          command_timeout: 10m
           script: |
+            # Retrieve the image URI from the build step's output
+            IMAGE_URI="${{ steps.build.outputs.image_uri }}"
             echo "Deploying image: $IMAGE_URI"
             docker stop streamlit-app || true
             docker rm streamlit-app || true
