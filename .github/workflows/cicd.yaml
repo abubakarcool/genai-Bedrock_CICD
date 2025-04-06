@@ -1,4 +1,4 @@
-name: Deploy Streamlit + Bedrock App to EC2 via ECR
+name: Deploy Streamlit + Bedrock App to EC2  via ECR
 
 on:
   push:
