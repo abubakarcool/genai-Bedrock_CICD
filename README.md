@@ -19,3 +19,5 @@ streamlit run .\main.py
 ```
 
 
+### For CI/CD we will create Dockerfile and it will create docker image in /app folder
+
