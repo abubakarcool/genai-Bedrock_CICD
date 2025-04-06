@@ -32,6 +32,8 @@ llm = Bedrock(
     model_kwargs={"temperature": 0.7}
 )
 
+
+
 # ✅ Prompt using the user input properly
 prompt = PromptTemplate(
     input_variables=["user_text"],
