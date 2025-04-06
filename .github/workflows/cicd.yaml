@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      image_uri: ${{ steps.export-image-uri.outputs.image_uri }}
+      image_uri: ${{ steps.set-output.outputs.image_uri }}
 
     steps:
       - name: Checkout code
@@ -30,8 +30,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag, and push Docker image
-        id: docker-build-push
+      - name: Build, Tag, and Push Docker Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
@@ -41,8 +40,8 @@ jobs:
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
-      - name: Export image URI
-        id: export-image-uri
+      - name: Set image URI as output
+        id: set-output
         run: echo "image_uri=${{ env.IMAGE_URI }}" >> $GITHUB_OUTPUT
 
   deploy:
