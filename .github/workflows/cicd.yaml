@@ -1,19 +1,22 @@
-name: Deploy Streamlit + Bedrock App to EC2  via ECR
+name: Build, Push, and Deploy Docker Image to EC2
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 env:
   IMAGE_TAG: latest
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
 
 jobs:
-  build-and-deploy:
-    name: Build, Push, and Deploy Docker Image to EC2
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Configure AWS credentials
@@ -21,49 +24,30 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Verify AWS Credentials and ECR Repository
-        run: |
-          echo "Verifying AWS credentials..."
-          aws sts get-caller-identity
-          echo "Verifying that ECR repository '${{ secrets.ECR_REPO }}' exists..."
-          aws ecr describe-repositories --repository-names ${{ secrets.ECR_REPO }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
+      - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag, and push Docker image
-        id: build
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
+      - name: Build and Push Docker image to ECR
+        id: docker_build
         run: |
-          IMAGE_URI=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+          IMAGE_URI=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           echo "Built image: $IMAGE_URI"
+
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-          # Capture the full image URI as an output for later use
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-      - name: Verify EC2 Configuration
-        run: |
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
-            echo "Error: EC2_HOST is not set!"
-            exit 1
-          else
-            echo "EC2_HOST is set."
-          fi
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            IMAGE_URI="${{ steps.build-and-push.outputs.image_uri }}"
+            IMAGE_URI="${{ steps.docker_build.outputs.image_uri }}"
             echo "Deploying image: $IMAGE_URI"
 
             export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
@@ -85,4 +69,3 @@ jobs:
               -p 8501:8501 \
               --name streamlit-app \
               $IMAGE_URI
-
