@@ -8,11 +8,9 @@ env:
   IMAGE_TAG: latest
 
 jobs:
-  build-and-push:
-    name: Build & Push Docker Image to Amazon ECR
+  build-and-deploy:
+    name: Build, Push, and Deploy Docker Image to EC2
     runs-on: ubuntu-latest
-    outputs:
-      image_uri: ${{ steps.docker-build-push.outputs.image_uri }}
 
     steps:
       - name: Checkout code
@@ -30,35 +28,31 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build, tag, and push Docker image
-        id: docker-build-push
+        id: build
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
         run: |
+          # Construct the full image URI
           IMAGE_URI=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
           echo "Built image: $IMAGE_URI"
+          # Build and push the Docker image
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
-
-  deploy:
-    name: Deploy to EC2
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+          # Save IMAGE_URI to the environment for subsequent steps
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
       - name: Deploy to EC2 via SSH
+        # Pass the IMAGE_URI from the environment into this step
+        env:
+          IMAGE_URI: ${{ env.IMAGE_URI }}
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            IMAGE_URI="${{ needs.build-and-push.outputs.image_uri }}"
-            echo "Pulling image: $IMAGE_URI"
+            echo "Deploying image: $IMAGE_URI"
             docker stop streamlit-app || true
             docker rm streamlit-app || true
             docker pull $IMAGE_URI
