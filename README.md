@@ -1,3 +1,5 @@
+Amazon Bedrock is a fully managed cloud service by AWS that lets you build and deploy generative AI applications using foundation models from top AI companies — without managing any infrastructure.
+ 
 ### search Bedrock and get start and request model request for first time
 ### create envirnment and activate it and then install the requirements
 ```
